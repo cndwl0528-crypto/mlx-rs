@@ -53,13 +53,18 @@ fn build_conv1d(builder: Conv1dBuilder) -> Result<Conv1d, Exception> {
     let input_channels = builder.input_channels;
     let output_channels = builder.output_channels;
     let kernel_size = builder.kernel_size;
+    let groups = builder.groups;
     let with_bias = builder.bias;
 
     let scale = f32::sqrt(1.0f32 / (input_channels * kernel_size) as f32);
+    // Depthwise / grouped conv: weight last dim is `in_channels / groups`.
+    // Without dividing by groups the underlying mlx-c op rejects the call
+    // when groups > 1 (e.g., LFM2 ShortConv with groups = hidden_size),
+    // because mlx expects [out_C, K, in_C / groups] for grouped convs.
     let weight = uniform::<_, f32>(
         -scale,
         scale,
-        &[output_channels, kernel_size, input_channels],
+        &[output_channels, kernel_size, input_channels / groups],
         None,
     )?;
     let bias = if with_bias {
@@ -192,12 +197,15 @@ fn build_conv2d(builder: Conv2dBuilder) -> Result<Conv2d, Exception> {
     let input_channels = builder.input_channels;
     let output_channels = builder.output_channels;
     let kernel_size: (i32, i32) = builder.kernel_size.into();
+    let groups = builder.groups;
     let with_bias = builder.bias;
     let padding = builder.padding.into();
     let stride = builder.stride.into();
     let dilation = builder.dilation.into();
 
     let scale = f32::sqrt(1.0 / (input_channels * kernel_size.0 * kernel_size.1) as f32);
+    // Depthwise / grouped conv: weight last dim is `in_channels / groups`
+    // (matches the build_conv1d fix above).
     let weight = uniform::<_, f32>(
         -scale,
         scale,
@@ -205,7 +213,7 @@ fn build_conv2d(builder: Conv2dBuilder) -> Result<Conv2d, Exception> {
             output_channels,
             kernel_size.0,
             kernel_size.1,
-            input_channels,
+            input_channels / groups,
         ],
         None,
     )?;
@@ -340,6 +348,7 @@ fn build_conv3d(builder: Conv3dBuilder) -> Result<Conv3d, Exception> {
     let input_channels = builder.input_channels;
     let output_channels = builder.output_channels;
     let kernel_size: (i32, i32, i32) = builder.kernel_size.into();
+    let groups = builder.groups;
     let with_bias = builder.bias;
     let padding = builder.padding.into();
     let stride = builder.stride.into();
@@ -347,6 +356,8 @@ fn build_conv3d(builder: Conv3dBuilder) -> Result<Conv3d, Exception> {
 
     let scale =
         f32::sqrt(1.0 / (input_channels * kernel_size.0 * kernel_size.1 * kernel_size.2) as f32);
+    // Depthwise / grouped conv: weight last dim is `in_channels / groups`
+    // (matches the build_conv1d/2d fix).
     let weight = uniform::<_, f32>(
         -scale,
         scale,
@@ -355,7 +366,7 @@ fn build_conv3d(builder: Conv3dBuilder) -> Result<Conv3d, Exception> {
             kernel_size.0,
             kernel_size.1,
             kernel_size.2,
-            input_channels,
+            input_channels / groups,
         ],
         None,
     )?;

@@ -1,0 +1,10 @@
+{
+  "stage": "packet_am_fork_conv_depthwise_fix_execution",
+  "packet": "AM-FORK-CONV-DEPTHWISE-FIX",
+  "allowed_files": [
+    ".planning/active-plan.md",
+    ".planning/harness.json",
+    ".planning/work-order.md",
+    "mlx-rs/src/nn/convolution.rs"
+  ]
+}
