@@ -74,15 +74,16 @@ fn impl_quantizable_module_for_struct(
 
                 type QuantizationError = #root::error::Exception;
 
-                fn try_into_quantized(
+                fn try_into_quantized_with_mode(
                     self,
                     group_size: i32,
                     bits: i32,
+                    mode: &str,
                 ) -> Result<Self::Quantized, Self::QuantizationError> {
                     Ok(Self {
                         #(
                             #filtered_field_names: #root::quantization::Quantizable
-                                ::try_into_quantized(self.#filtered_field_names, group_size, bits)?,
+                                ::try_into_quantized_with_mode(self.#filtered_field_names, group_size, bits, mode)?,
                         )*
                         #(
                             #other_field_names: self.#other_field_names,

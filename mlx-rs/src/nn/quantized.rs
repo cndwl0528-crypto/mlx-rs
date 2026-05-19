@@ -66,12 +66,12 @@ pub struct QuantizedEmbeddingBuilder {
     #[builder(optional, default = QuantizedEmbedding::DEFAULT_GROUP_SIZE)]
     pub group_size: i32,
 
-    /// Bits per parameter. Default to [`Quantizable::DEFAULT_BITS`]
-    #[builder(optional, default = Quantizable::DEFAULT_BITS)]
+    /// Bits per parameter. Default to [`QuantizedEmbedding::DEFAULT_BITS`]
+    #[builder(optional, default = QuantizedEmbedding::DEFAULT_BITS)]
     pub bits: i32,
 
     /// Quantization mode.
-    #[builder(optional)]
+    #[builder(optional, default = QuantizedEmbedding::DEFAULT_MODE)]
     pub mode: Option<String>,
 }
 
@@ -169,6 +169,9 @@ impl QuantizedEmbedding {
     /// Default bits
     pub const DEFAULT_BITS: i32 = 4;
 
+    /// Default quantization mode
+    pub const DEFAULT_MODE: Option<String> = None;
+
     /// Convert an embedding layer to a quantized embedding layer.
     ///
     /// # Params
@@ -176,14 +179,25 @@ impl QuantizedEmbedding {
     /// - `embedding`: The embedding layer to convert.
     /// - `group_size`: The group size to use for the quantized weight. Default to [`QuantizedEmbedding::DEFAULT_GROUP_SIZE`]
     /// - `bits`: The bit width to use for the quantized weight. Default to [`QuantizedEmbedding::DEFAULT_BITS`]
+    /// - `mode`: The quantization mode.
+    pub fn try_from_embedding_with_mode(
+        embedding: Embedding,
+        group_size: impl Into<Option<i32>>,
+        bits: impl Into<Option<i32>>,
+        mode: &str,
+    ) -> Result<Self, Exception> {
+        let group_size = group_size.into().unwrap_or(Self::DEFAULT_GROUP_SIZE);
+        let bits = bits.into().unwrap_or(Self::DEFAULT_BITS);
+        build_quantized_embedding_inner(embedding.weight.value, group_size, bits, mode)
+    }
+
+    /// Convert an embedding layer to a quantized embedding layer with default mode ("affine").
     pub fn try_from_embedding(
         embedding: Embedding,
         group_size: impl Into<Option<i32>>,
         bits: impl Into<Option<i32>>,
     ) -> Result<Self, Exception> {
-        let group_size = group_size.into().unwrap_or(Self::DEFAULT_GROUP_SIZE);
-        let bits = bits.into().unwrap_or(Self::DEFAULT_BITS);
-        build_quantized_embedding_inner(embedding.weight.value, group_size, bits, "affine")
+        Self::try_from_embedding_with_mode(embedding, group_size, bits, "affine")
     }
 
     /// Call the embedding layer as a linear layer.
@@ -265,7 +279,7 @@ pub struct QuantizedLinearBuilder {
     pub bits: i32,
 
     /// Quantization mode.
-    #[builder(optional)]
+    #[builder(optional, default = QuantizedLinear::DEFAULT_MODE)]
     pub mode: Option<String>,
 
     /// Whether the linear layer has a bias. Default to [`Linear::DEFAULT_BIAS`]
@@ -378,6 +392,9 @@ impl QuantizedLinear {
     /// Default bits
     pub const DEFAULT_BITS: i32 = 4;
 
+    /// Default quantization mode
+    pub const DEFAULT_MODE: Option<String> = None;
+
     /// Convert a linear layer to a quantized linear layer.
     ///
     /// # Params
@@ -385,10 +402,12 @@ impl QuantizedLinear {
     /// - `linear`: The linear layer to convert.
     /// - `group_size`: The group size to use for the quantized weight. Default to [`QuantizedLinear::DEFAULT_GROUP_SIZE`]
     /// - `bits`: The bit width to use for the quantized weight. Default to [`QuantizedLinear::DEFAULT_BITS`]
-    pub fn try_from_linear(
+    /// - `mode`: The quantization mode.
+    pub fn try_from_linear_with_mode(
         linear: Linear,
         group_size: impl Into<Option<i32>>,
         bits: impl Into<Option<i32>>,
+        mode: &str,
     ) -> Result<Self, Exception> {
         let group_size = group_size.into().unwrap_or(Self::DEFAULT_GROUP_SIZE);
         let bits = bits.into().unwrap_or(Self::DEFAULT_BITS);
@@ -397,8 +416,17 @@ impl QuantizedLinear {
             linear.bias.value,
             group_size,
             bits,
-            "affine",
+            mode,
         )
+    }
+
+    /// Convert a linear layer to a quantized linear layer with default mode ("affine").
+    pub fn try_from_linear(
+        linear: Linear,
+        group_size: impl Into<Option<i32>>,
+        bits: impl Into<Option<i32>>,
+    ) -> Result<Self, Exception> {
+        Self::try_from_linear_with_mode(linear, group_size, bits, "affine")
     }
 }
 
