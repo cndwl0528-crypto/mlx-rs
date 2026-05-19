@@ -21,6 +21,19 @@ pub trait Quantizable {
         self,
         group_size: i32,
         bits: i32,
+    ) -> Result<Self::Quantized, Self::QuantizationError>
+    where
+        Self: Sized,
+    {
+        self.try_into_quantized_with_mode(group_size, bits, "affine")
+    }
+
+    /// Quantize the module with the specified group size, number of bits, and mode.
+    fn try_into_quantized_with_mode(
+        self,
+        group_size: i32,
+        bits: i32,
+        mode: &str,
     ) -> Result<Self::Quantized, Self::QuantizationError>;
 }
 
@@ -32,13 +45,14 @@ where
 
     type QuantizationError = M::QuantizationError;
 
-    fn try_into_quantized(
+    fn try_into_quantized_with_mode(
         self,
         group_size: i32,
         bits: i32,
+        mode: &str,
     ) -> Result<Self::Quantized, Self::QuantizationError> {
         self.into_iter()
-            .map(|m| m.try_into_quantized(group_size, bits))
+            .map(|m| m.try_into_quantized_with_mode(group_size, bits, mode))
             .collect()
     }
 }
@@ -51,12 +65,15 @@ where
 
     type QuantizationError = M::QuantizationError;
 
-    fn try_into_quantized(
+    fn try_into_quantized_with_mode(
         self,
         group_size: i32,
         bits: i32,
+        mode: &str,
     ) -> Result<Self::Quantized, Self::QuantizationError> {
-        (*self).try_into_quantized(group_size, bits).map(Box::new)
+        (*self)
+            .try_into_quantized_with_mode(group_size, bits, mode)
+            .map(Box::new)
     }
 }
 
@@ -68,13 +85,16 @@ where
 
     type QuantizationError = M::QuantizationError;
 
-    fn try_into_quantized(
+    fn try_into_quantized_with_mode(
         self,
         group_size: i32,
         bits: i32,
+        mode: &str,
     ) -> Result<Self::Quantized, Self::QuantizationError> {
         match self {
-            Some(m) => m.try_into_quantized(group_size, bits).map(Some),
+            Some(m) => m
+                .try_into_quantized_with_mode(group_size, bits, mode)
+                .map(Some),
             None => Ok(None),
         }
     }
@@ -100,14 +120,15 @@ where
     type Quantized = Self;
     type QuantizationError = <M as Quantizable>::QuantizationError;
 
-    fn try_into_quantized(
+    fn try_into_quantized_with_mode(
         self,
         group_size: i32,
         bits: i32,
+        mode: &str,
     ) -> Result<Self, Self::QuantizationError> {
         match self {
             MaybeQuantized::Original(m) => {
-                let quantized = m.try_into_quantized(group_size, bits)?;
+                let quantized = m.try_into_quantized_with_mode(group_size, bits, mode)?;
                 Ok(MaybeQuantized::Quantized(quantized))
             }
             MaybeQuantized::Quantized(q) => Ok(MaybeQuantized::Quantized(q)),

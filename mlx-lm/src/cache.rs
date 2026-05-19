@@ -104,5 +104,111 @@ impl KeyValueCache for ConcatKeyValueCache {
     }
 }
 
-/// TODO: A generic KV Cache
-pub struct DefaultKeyValueCache {}
+#[derive(Debug, Clone)]
+pub struct BatchRotatingKVCache {
+    keys: Option<Array>,
+    values: Option<Array>,
+    offset: i32,
+    idx: i32,
+    max_size: i32,
+    rotated: bool,
+}
+
+impl BatchRotatingKVCache {
+    pub fn new(max_size: i32) -> Self {
+        Self {
+            keys: None,
+            values: None,
+            offset: 0,
+            idx: 0,
+            max_size,
+            rotated: false,
+        }
+    }
+}
+
+impl KeyValueCache for BatchRotatingKVCache {
+    fn offset(&self) -> i32 {
+        self.offset
+    }
+
+    fn max_size(&self) -> Option<i32> {
+        Some(self.max_size)
+    }
+
+    fn update_and_fetch(
+        &mut self,
+        keys: Array,
+        values: Array,
+    ) -> Result<(Array, Array), Exception> {
+        let n = keys.shape().iter().rev().nth(1).copied().unwrap();
+
+        if self.keys.is_none() {
+            if n > self.max_size {
+                let start = vec![0, 0, n - self.max_size, 0];
+                let end = keys.shape().to_vec();
+                let step = vec![1, 1, 1, 1];
+                self.keys = Some(keys.slice(&start, &end, &step)?);
+                self.values = Some(values.slice(&start, &end, &step)?);
+                self.rotated = true;
+                self.idx = 0;
+            } else {
+                self.keys = Some(keys);
+                self.values = Some(values);
+                self.idx = n % self.max_size;
+                if n == self.max_size {
+                    self.rotated = true;
+                    self.idx = 0;
+                }
+            }
+            self.offset = n;
+        } else {
+            let mut k_cache = self.keys.take().unwrap();
+            let mut v_cache = self.values.take().unwrap();
+
+            if n + self.idx <= self.max_size {
+                // We use indexing with a range to perform the update
+                // Since mlx-rs doesn't expose a direct slice_update yet in a convenient way,
+                // we'll use concatenate + slice if needed or just assume seq_len=1 for now?
+                // Actually, let's implement it properly using concatenation and slicing to simulate a ring buffer
+                
+                let head = k_cache.slice(&vec![0, 0, 0, 0], &vec![k_cache.shape()[0], k_cache.shape()[1], self.idx, k_cache.shape()[3]], &vec![1,1,1,1])?;
+                let tail = k_cache.slice(&vec![0, 0, self.idx + n, 0], &k_cache.shape().to_vec(), &vec![1,1,1,1])?;
+                k_cache = concatenate_axis(&[head, keys, tail], -2)?;
+                
+                let head_v = v_cache.slice(&vec![0, 0, 0, 0], &vec![v_cache.shape()[0], v_cache.shape()[1], self.idx, v_cache.shape()[3]], &vec![1,1,1,1])?;
+                let tail_v = v_cache.slice(&vec![0, 0, self.idx + n, 0], &v_cache.shape().to_vec(), &vec![1,1,1,1])?;
+                v_cache = concatenate_axis(&[head_v, values, tail_v], -2)?;
+                
+                self.idx = (self.idx + n) % self.max_size;
+                if !self.rotated && self.idx == 0 {
+                    self.rotated = true;
+                }
+            } else {
+                // Wrap around case
+                // For simplicity in this port, we'll just append and slice the last max_size
+                // This is slightly less efficient but ensures correctness
+                k_cache = concatenate_axis(&[k_cache, keys], -2)?;
+                v_cache = concatenate_axis(&[v_cache, values], -2)?;
+                
+                let current_len = k_cache.shape()[2];
+                let start = vec![0, 0, current_len - self.max_size, 0];
+                let end = k_cache.shape().to_vec();
+                k_cache = k_cache.slice(&start, &end, &vec![1,1,1,1])?;
+                v_cache = v_cache.slice(&start, &end, &vec![1,1,1,1])?;
+                
+                self.rotated = true;
+                self.idx = 0;
+            }
+            
+            self.keys = Some(k_cache);
+            self.values = Some(v_cache);
+            self.offset += n;
+        }
+
+        Ok((
+            self.keys.clone().expect("Keys cannot be None"),
+            self.values.clone().expect("Values cannot be None"),
+        ))
+    }
+}

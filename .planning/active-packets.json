@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "active": [
+    {
+      "packet": "session-f136c914-f22",
+      "session": "f136c914-f228-4cb2-bfc2-d04af1adaa83",
+      "created_at_ms": 1778949041101,
+      "started_at": "2026-05-16T16:30:41.101Z",
+      "cwd": "/Users/maxmcair/Projects/mlx-rs",
+      "auto": true
+    }
+  ]
+}

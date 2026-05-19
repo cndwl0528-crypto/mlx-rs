@@ -34,7 +34,7 @@ fn optional_dtype_none() -> mlx_sys::mlx_optional_dtype {
 /// columns of `w` should be divisible by `group_size`. In particular, the rows of `w` are divided
 /// into groups of size `group_size` which are quantized together.
 ///
-/// > `quantized` currently only supports 2D inputs with dimensions which are multiples of 32
+/// > `quantize` currently only supports 2D inputs with dimensions which are multiples of 32
 ///
 /// For details, please see [this
 /// documentation](https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.quantize.html)
@@ -45,16 +45,22 @@ fn optional_dtype_none() -> mlx_sys::mlx_optional_dtype {
 /// - `group_size`: The size of the group in `w` that shares a scale and bias. (default: `64`)
 /// - `bits`: The number of bits occupied by each element of w in the returned quantized matrix.
 ///   (default: 4)
+/// - `mode`: The quantization mode. (default: `"affine"`)
+/// - `global_scale`: An optional global scale. (default: `None`)
 #[generate_macro]
 #[default_device]
-pub fn quantize_device(
+pub fn quantize_device<'a>(
     w: impl AsRef<Array>,
     #[optional] group_size: impl Into<Option<i32>>,
     #[optional] bits: impl Into<Option<i32>>,
+    #[optional] mode: impl Into<Option<&'a str>>,
+    #[optional] global_scale: impl Into<Option<&'a Array>>,
     #[optional] stream: impl AsRef<Stream>,
 ) -> Result<(Array, Array, Array)> {
     let group_size = optional_int(group_size.into(), DEFAULT_GROUP_SIZE);
     let bits = optional_int(bits.into(), DEFAULT_BITS);
+    let mode = mode.into().unwrap_or("affine");
+    let mode_cstr = std::ffi::CString::new(mode).expect("Invalid mode string");
 
     let result = VectorArray::try_from_op(|res| unsafe {
         mlx_sys::mlx_quantize(
@@ -62,15 +68,19 @@ pub fn quantize_device(
             w.as_ref().as_ptr(),
             group_size,
             bits,
-            DEFAULT_MODE.as_ptr(),
+            mode_cstr.as_ptr(),
+            global_scale
+                .into()
+                .map(|a: &Array| a.as_ptr())
+                .unwrap_or(mlx_sys::mlx_array_new()),
             stream.as_ref().as_ptr(),
         )
     })?;
 
     let arrays: Vec<Array> = result.try_into_values()?;
-    if arrays.len() != 3 {
+    if arrays.len() < 2 {
         return Err(crate::error::Exception::custom(format!(
-            "Expected 3 arrays from quantize, got {}",
+            "Expected at least 2 arrays from quantize, got {}",
             arrays.len()
         )));
     }
@@ -78,7 +88,7 @@ pub fn quantize_device(
     Ok((
         iter.next().unwrap(),
         iter.next().unwrap(),
-        iter.next().unwrap(),
+        iter.next().unwrap_or_else(|| Array::zeros::<f32>(&[0]).unwrap()), // Return empty array if bias is missing (e.g. non-affine)
     ))
 }
 
@@ -96,11 +106,14 @@ pub fn quantized_matmul_device<'a>(
     #[optional] transpose: impl Into<Option<bool>>,
     #[optional] group_size: impl Into<Option<i32>>,
     #[optional] bits: impl Into<Option<i32>>,
+    #[optional] mode: impl Into<Option<&'a str>>,
     #[optional] stream: impl AsRef<Stream>,
 ) -> Result<Array> {
     let transpose = transpose.into().unwrap_or(false);
     let group_size = optional_int(group_size.into(), DEFAULT_GROUP_SIZE);
     let bits = optional_int(bits.into(), DEFAULT_BITS);
+    let mode = mode.into().unwrap_or("affine");
+    let mode_cstr = std::ffi::CString::new(mode).expect("Invalid mode string");
 
     <Array as Guarded>::try_from_op(|res| unsafe {
         mlx_sys::mlx_quantized_matmul(
@@ -115,7 +128,7 @@ pub fn quantized_matmul_device<'a>(
             transpose,
             group_size,
             bits,
-            DEFAULT_MODE.as_ptr(),
+            mode_cstr.as_ptr(),
             stream.as_ref().as_ptr(),
         )
     })
@@ -134,10 +147,14 @@ pub fn dequantize_device<'a>(
     #[optional] biases: impl Into<Option<&'a Array>>,
     #[optional] group_size: impl Into<Option<i32>>,
     #[optional] bits: impl Into<Option<i32>>,
+    #[optional] mode: impl Into<Option<&'a str>>,
+    #[optional] global_scale: impl Into<Option<&'a Array>>,
     #[optional] stream: impl AsRef<Stream>,
 ) -> Result<Array> {
     let group_size = optional_int(group_size.into(), DEFAULT_GROUP_SIZE);
     let bits = optional_int(bits.into(), DEFAULT_BITS);
+    let mode = mode.into().unwrap_or("affine");
+    let mode_cstr = std::ffi::CString::new(mode).expect("Invalid mode string");
 
     <Array as Guarded>::try_from_op(|res| unsafe {
         mlx_sys::mlx_dequantize(
@@ -150,7 +167,11 @@ pub fn dequantize_device<'a>(
                 .unwrap_or(mlx_sys::mlx_array_new()),
             group_size,
             bits,
-            DEFAULT_MODE.as_ptr(),
+            mode_cstr.as_ptr(),
+            global_scale
+                .into()
+                .map(|a: &Array| a.as_ptr())
+                .unwrap_or(mlx_sys::mlx_array_new()),
             optional_dtype_none(),
             stream.as_ref().as_ptr(),
         )

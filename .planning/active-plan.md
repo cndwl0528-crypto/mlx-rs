@@ -9,8 +9,10 @@
 ## Steps
 
 1. 코드 fix (완료, 3개 함수)
-2. git commit + push (origin main)
-3. hi-alice Cargo.toml patch는 옆 세션 iMac soak 종료 후 별도 진행
+2. git commit + push (완료, b744c60)
+3. hi-alice `../hi-alice/rust/air-m5-dora/Cargo.toml`에 `[patch.crates-io]` 블록 추가 (진행 중)
+4. AL-1 sanity test (`../hi-alice/rust/air-m5-dora/crates/mlx-rs-proof/tests/lfm2_conv1d_depthwise_sanity.rs`) builder 패턴 재작성
+5. cargo build sanity (Air M5)
 
 ## Verify
 

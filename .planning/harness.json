@@ -5,6 +5,8 @@
     ".planning/active-plan.md",
     ".planning/harness.json",
     ".planning/work-order.md",
-    "mlx-rs/src/nn/convolution.rs"
+    "mlx-rs/src/nn/convolution.rs",
+    "../hi-alice/rust/air-m5-dora/Cargo.toml",
+    "../hi-alice/rust/air-m5-dora/crates/mlx-rs-proof/tests/lfm2_conv1d_depthwise_sanity.rs"
   ]
 }
