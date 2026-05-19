@@ -4,6 +4,7 @@ use std::{
     rc::Rc,
 };
 
+use mlx_internal_macros::default_device;
 use smallvec::{smallvec, SmallVec};
 
 use crate::{
@@ -701,9 +702,16 @@ where
 // Implement private bindings
 impl Array {
     // This is exposed in the c api but not found in the swift or python api
-    //
-    // Thie is not the same as rust slice. Slice in python is more like `StepBy` iterator in rust
-    pub(crate) fn slice_device(
+    /// Slice the array.
+    ///
+    /// This is not the same as rust slice. Slice in MLX is more like `StepBy` iterator in rust
+    ///
+    /// # Params
+    /// - `start`: Start indices
+    /// - `stop`: Stop indices
+    /// - `strides`: Strides
+    #[default_device]
+    pub fn slice_device(
         &self,
         start: &[i32],
         stop: &[i32],

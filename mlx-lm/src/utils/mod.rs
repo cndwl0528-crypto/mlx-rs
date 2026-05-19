@@ -114,6 +114,7 @@ pub(crate) fn quantized_scaled_dot_product_attention(
         true,
         group_size,
         bits,
+        "affine",
     )?;
 
     if let Some(mask) = mask {
@@ -135,6 +136,7 @@ pub(crate) fn quantized_scaled_dot_product_attention(
         false,
         group_size,
         bits,
+        "affine",
     )?;
 
     if n_repeats > 1 {

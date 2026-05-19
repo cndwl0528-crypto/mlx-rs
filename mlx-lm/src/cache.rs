@@ -1,4 +1,4 @@
-use mlx_rs::{error::Exception, ops::concatenate_axis, Array};
+use mlx_rs::{error::Exception, ops::concatenate_axis, ops::indexing::slice, Array};
 
 // TODO: somehow move quantized methods to a separate trait?
 pub trait KeyValueCache {
@@ -148,8 +148,8 @@ impl KeyValueCache for BatchRotatingKVCache {
                 let start = vec![0, 0, n - self.max_size, 0];
                 let end = keys.shape().to_vec();
                 let step = vec![1, 1, 1, 1];
-                self.keys = Some(keys.slice(&start, &end, &step)?);
-                self.values = Some(values.slice(&start, &end, &step)?);
+                self.keys = Some(slice(&keys, &start, &end, &step)?);
+                self.values = Some(slice(&values, &start, &end, &step)?);
                 self.rotated = true;
                 self.idx = 0;
             } else {
@@ -172,12 +172,12 @@ impl KeyValueCache for BatchRotatingKVCache {
                 // we'll use concatenate + slice if needed or just assume seq_len=1 for now?
                 // Actually, let's implement it properly using concatenation and slicing to simulate a ring buffer
                 
-                let head = k_cache.slice(&vec![0, 0, 0, 0], &vec![k_cache.shape()[0], k_cache.shape()[1], self.idx, k_cache.shape()[3]], &vec![1,1,1,1])?;
-                let tail = k_cache.slice(&vec![0, 0, self.idx + n, 0], &k_cache.shape().to_vec(), &vec![1,1,1,1])?;
+                let head = slice(&k_cache, &vec![0, 0, 0, 0], &vec![k_cache.shape()[0], k_cache.shape()[1], self.idx, k_cache.shape()[3]], &vec![1,1,1,1])?;
+                let tail = slice(&k_cache, &vec![0, 0, self.idx + n, 0], &k_cache.shape().to_vec(), &vec![1,1,1,1])?;
                 k_cache = concatenate_axis(&[head, keys, tail], -2)?;
                 
-                let head_v = v_cache.slice(&vec![0, 0, 0, 0], &vec![v_cache.shape()[0], v_cache.shape()[1], self.idx, v_cache.shape()[3]], &vec![1,1,1,1])?;
-                let tail_v = v_cache.slice(&vec![0, 0, self.idx + n, 0], &v_cache.shape().to_vec(), &vec![1,1,1,1])?;
+                let head_v = slice(&v_cache, &vec![0, 0, 0, 0], &vec![v_cache.shape()[0], v_cache.shape()[1], self.idx, v_cache.shape()[3]], &vec![1,1,1,1])?;
+                let tail_v = slice(&v_cache, &vec![0, 0, self.idx + n, 0], &v_cache.shape().to_vec(), &vec![1,1,1,1])?;
                 v_cache = concatenate_axis(&[head_v, values, tail_v], -2)?;
                 
                 self.idx = (self.idx + n) % self.max_size;
@@ -194,8 +194,8 @@ impl KeyValueCache for BatchRotatingKVCache {
                 let current_len = k_cache.shape()[2];
                 let start = vec![0, 0, current_len - self.max_size, 0];
                 let end = k_cache.shape().to_vec();
-                k_cache = k_cache.slice(&start, &end, &vec![1,1,1,1])?;
-                v_cache = v_cache.slice(&start, &end, &vec![1,1,1,1])?;
+                k_cache = slice(&k_cache, &start, &end, &vec![1,1,1,1])?;
+                v_cache = slice(&v_cache, &start, &end, &vec![1,1,1,1])?;
                 
                 self.rotated = true;
                 self.idx = 0;
