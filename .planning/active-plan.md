@@ -10,15 +10,16 @@
 
 1. 코드 fix (완료, 3개 함수)
 2. git commit + push (완료, b744c60)
-3. hi-alice `../hi-alice/rust/air-m5-dora/Cargo.toml`에 `[patch.crates-io]` 블록 추가 (진행 중)
-4. AL-1 sanity test (`../hi-alice/rust/air-m5-dora/crates/mlx-rs-proof/tests/lfm2_conv1d_depthwise_sanity.rs`) builder 패턴 재작성
-5. cargo build sanity (Air M5)
+3. hi-alice `../hi-alice/rust/air-m5-dora/Cargo.toml`에 `[patch.crates-io]` 블록 추가 (완료)
+4. AL-1 sanity test (`../hi-alice/rust/air-m5-dora/crates/mlx-rs-proof/tests/lfm2_conv1d_depthwise_sanity.rs`) builder 패턴 재작성 (완료)
+5. cargo build sanity (완료)
 
 ## Verify
 
 - 3 함수 fix 확인 (build_conv1d/2d/3d)
 - git push 성공
 - diff stat: convolution.rs 1 file changed
+- AL-1 builder test PASS (hi-alice)
 
 ## Closeout
 

@@ -199,7 +199,7 @@ impl QuantizedEmbedding {
             true,
             self.group_size,
             self.bits,
-            &self.mode,
+            self.mode.as_str(),
         )
     }
 }
@@ -223,7 +223,15 @@ impl Module<&Array> for QuantizedEmbedding {
         let scales = self.scales.index(&x);
         let biases = self.biases.index(&x);
 
-        let out = dequantize(&w, &scales, &biases, self.group_size, self.bits, &self.mode, None)?;
+        let out = dequantize(
+            &w,
+            &scales,
+            &biases,
+            self.group_size,
+            self.bits,
+            self.mode.as_str(),
+            None,
+        )?;
 
         let ret_shape = s.iter().copied().chain(once(-1)).collect::<Vec<_>>();
         out.reshape(&ret_shape)
@@ -415,7 +423,7 @@ impl Module<&Array> for QuantizedLinear {
             true,
             self.group_size,
             self.bits,
-            &self.mode,
+            self.mode.as_str(),
         )?;
         if let Some(bias) = &self.inner.bias.value {
             x = x.add(bias)?;

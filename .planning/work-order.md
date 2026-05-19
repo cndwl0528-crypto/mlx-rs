@@ -12,8 +12,8 @@
 - [x] build_conv2d
 - [x] build_conv3d
 - [x] fork git commit + push (b744c60)
-- [ ] hi-alice Cargo.toml `[patch.crates-io]` 블록 추가
-- [ ] AL-1 builder 패턴 재작성 + cargo test PASS
+- [x] hi-alice Cargo.toml `[patch.crates-io]` 블록 추가
+- [x] AL-1 builder 패턴 재작성 + cargo test PASS
 
 ## Karpathy Applied
 
